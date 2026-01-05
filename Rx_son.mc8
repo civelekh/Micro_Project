@@ -1,0 +1,94 @@
+***** DeedsMcE Project File *****
+* If you read this message, you need to install the last version of Deeds! *
+FVR 3
+SYS 1
+CPU 1
+FCK 2
+ROM 4
+RAM 4
+PIA 0
+PIB 1
+PIC 2
+PID 3
+PIE 4
+PIF 5
+PIG 6
+PIH 7
+POA 0
+POB 1
+POC 2
+POD 3
+POE 4
+POF 5
+POG 6
+POH 7
+INT 007 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 006 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 005 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 004 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 003 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 002 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 001 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+INT 000 SRC 002 PRT 000 TMD 001 TIN 019 EIN 003 
+******* Project File END ********
+; --- RX  ---
+; Output: OA Port (Address 00h) -> Connected to LEDs
+; Interrupt: Emergency State (Flasher Mode)
+
+        ORG 0000h       ; Origin: Program starts at memory address 0000h
+        JP START        ; Jump to the main label 'START'
+
+        ; --- INTERRUPT VECTOR ---
+        ORG 0038h       ; Hardware specific address for Interrupts (Mode 1)
+        JP EMERGENCY    ; When interrupt signals, jump to 'EMERGENCY' label
+
+START:
+        LD SP, 0FFFFh   ; Load Stack Pointer: Set stack to top of memory
+        EI              ; Enable Interrupts: Allow the CPU to accept external signals
+        LD A, 01h       ; Load Accumulator: Set initial pattern (Binary: 00000001)
+
+LOOP:
+        OUT (00h), A    ; Output: Send value of A to Port 00h (Turn on LED)
+        CALL DELAY      ; Subroutine Call: Go to 'DELAY' to wait
+        
+        RLCA            ; Rotate Left Circular Accumulator:
+                        ; Moves the '1' bit to the left (1->2->4->8...)
+                        ; If bit 7 is '1', it moves back to bit 0.
+        
+        JP LOOP         ; Jump: Go back to 'LOOP' (Infinite cycle)
+
+; --- DELAY ---
+DELAY:
+        PUSH BC         ; Save Register B: Keep its original value safe in Stack
+        
+        ; SPEED SETTING:
+        ; 0FFh (255) = Slowest speed
+        ; 010h (16)  = Very fast speed
+        LD B, 040h      ; Load B with 64 (Counter value)
+        
+WAIT_LOOP:    
+        DEC B           ; Decrement: Decrease B by 1
+        JP NZ, WAIT_LOOP ; Jump if Not Zero: If B is not 0, go back to decrement
+        
+        POP BC          ; Restore Register B: Get the original value back
+        RET             ; Return: Go back to where CALL was made
+
+; --- INTERRUPT SERVICE ROUTINE (EMERGENCY) ---
+EMERGENCY:
+        PUSH AF         ; Save Accumulator & Flags: Don't lose the running LED position!
+        PUSH BC         ; Save B: Don't mess up any running delay counters
+        
+        ; FLASHER: ALL ON
+        LD A, 0FFh      ; Load A with 11111111 (All LEDs ON)
+        OUT (00h), A    ; Send to LEDs
+        CALL DELAY      ; Wait
+        
+        ; FLASHER: ALL OFF
+        LD A, 00h       ; Load A with 00000000 (All LEDs OFF)
+        OUT (00h), A    ; Send to LEDs
+        CALL DELAY      ; Wait
+        
+        POP BC          ; Restore B
+        POP AF          ; Restore A (Recall which LED was on before emergency)
+        EI              ; Re-Enable Interrupts
+        RET             ; Return from Interrupt: Resume main program

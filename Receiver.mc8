@@ -92,3 +92,4 @@ EMERGENCY:
         POP AF          ; Restore A (Recall which LED was on before emergency)
         EI              ; Re-Enable Interrupts
         RET             ; Return from Interrupt: Resume main program
+
